@@ -123,6 +123,7 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
       _responseData = null;
       _statusCode = null;
       _requestDuration = null;
+      _responseSource = null;
     });
 
     final stopwatch = Stopwatch()..start();
@@ -166,6 +167,7 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
           _responseData = response.data;
           _statusCode = response.statusCode;
           _requestDuration = stopwatch.elapsed;
+          _responseSource = response.extra['acdc_source'] ?? 'network';
         });
 
         _talker.info('Request Success: $method $url', {
@@ -220,7 +222,6 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
     setState(() {
       _isLoading = true;
       _error = null;
-      _responseData = null;
       _responseData = null;
       _statusCode = null;
       _responseSource = null;
@@ -281,6 +282,7 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
       _error = null;
       _responseData = null;
       _statusCode = null;
+      _responseSource = null;
     });
 
     _talker.info('Starting (delay=3s) request... Press Cancel again to abort.');
@@ -327,6 +329,7 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
     setState(() {
       _isLoading = true;
       _error = null;
+      _responseSource = null;
     });
 
     try {
