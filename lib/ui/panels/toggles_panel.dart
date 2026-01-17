@@ -4,18 +4,22 @@ import 'package:flutter/services.dart';
 import '../../utils/code_snippet_generator.dart';
 
 /// Panel displaying feature toggles for Dart-ACDC features
-/// (Authentication, Caching, Offline Detection) with live code snippet.
+/// (Authentication, Caching, Offline Detection, Deduplication, SWR) with live code snippet.
 class TogglesPanel extends StatelessWidget {
   final bool authEnabled;
   final String clientId;
   final bool cacheEnabled;
   final int cacheTtl;
   final bool offlineEnabled;
+  final bool deduplicationEnabled;
+  final bool swrEnabled;
   final ValueChanged<bool> onAuthToggled;
   final ValueChanged<String> onClientIdChanged;
   final ValueChanged<bool> onCacheToggled;
   final ValueChanged<int> onCacheTtlChanged;
   final ValueChanged<bool> onOfflineToggled;
+  final ValueChanged<bool> onDeduplicationToggled;
+  final ValueChanged<bool> onSwrToggled;
 
   const TogglesPanel({
     super.key,
@@ -24,11 +28,15 @@ class TogglesPanel extends StatelessWidget {
     required this.cacheEnabled,
     required this.cacheTtl,
     required this.offlineEnabled,
+    required this.deduplicationEnabled,
+    required this.swrEnabled,
     required this.onAuthToggled,
     required this.onClientIdChanged,
     required this.onCacheToggled,
     required this.onCacheTtlChanged,
     required this.onOfflineToggled,
+    required this.onDeduplicationToggled,
+    required this.onSwrToggled,
   });
 
   @override
@@ -161,6 +169,26 @@ class TogglesPanel extends StatelessWidget {
               value: offlineEnabled,
               onChanged: onOfflineToggled,
             ),
+            const SizedBox(height: 12),
+
+            // Request Deduplication Toggle
+            _buildToggleSection(
+              context: context,
+              title: 'Request Deduplication',
+              icon: Icons.copy_all,
+              value: deduplicationEnabled,
+              onChanged: onDeduplicationToggled,
+            ),
+            const SizedBox(height: 12),
+
+            // SWR Toggle
+            _buildToggleSection(
+              context: context,
+              title: 'Stale-While-Revalidate',
+              icon: Icons.refresh,
+              value: swrEnabled,
+              onChanged: onSwrToggled,
+            ),
             const SizedBox(height: 24),
 
             // Code Snippet Section
@@ -217,6 +245,8 @@ class TogglesPanel extends StatelessWidget {
       cacheEnabled: cacheEnabled,
       cacheTtl: cacheTtl,
       offlineEnabled: offlineEnabled,
+      deduplicationEnabled: deduplicationEnabled,
+      swrEnabled: swrEnabled,
     );
 
     return ExpansionTile(

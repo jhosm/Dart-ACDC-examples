@@ -1,5 +1,8 @@
 import 'package:dart_acdc/dart_acdc.dart' as acdc;
+// ignore: implementation_imports
+import 'package:dart_acdc/src/extensions/acdc_client_extensions.dart'; // Import for streamRequest
 import 'package:dio/dio.dart';
+import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:flutter/material.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 
@@ -24,12 +27,16 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
   late Dio _dio;
   late Future<void> _initializationFuture;
 
+  // Shared cache store - persists across client rebuilds
+  late final CacheStore _sharedCacheStore;
+
   // Request/Response State
   bool _isLoading = false;
   dynamic _responseData;
   String? _error;
   int? _statusCode;
   Duration? _requestDuration;
+  String? _responseSource;
 
   // Feature Toggle State
   bool _authEnabled = false;
@@ -37,11 +44,15 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
   bool _cacheEnabled = false;
   int _cacheTtl = 60;
   bool _offlineEnabled = false;
+  bool _deduplicationEnabled = false;
+  bool _swrEnabled = false;
   final MockTokenProvider _tokenProvider = MockTokenProvider();
 
   @override
   void initState() {
     super.initState();
+    // Create shared cache store once - persists across rebuilds
+    _sharedCacheStore = MemCacheStore(maxSize: 5 * 1024 * 1024); // 5MB
     _initializationFuture = _initializeClient();
   }
 
@@ -61,14 +72,25 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
       builder = builder.withTokenProvider(_tokenProvider);
     }
 
-    if (_cacheEnabled) {
-      builder = builder.withCache(
-        acdc.CacheConfig(ttl: Duration(seconds: _cacheTtl)),
-      );
+    if (_cacheEnabled || _swrEnabled) {
+      builder = builder
+          .withCache(
+            acdc.CacheConfig(
+              ttl: Duration(seconds: _cacheTtl),
+              staleWhileRevalidate: _swrEnabled,
+            ),
+          )
+          .withCacheStore(_sharedCacheStore);
+    } else {
+      builder = builder.disableCache();
     }
 
     if (_offlineEnabled) {
       builder = builder.withOfflineDetection(failFast: true);
+    }
+
+    if (_deduplicationEnabled) {
+      builder = builder.withDeduplication();
     }
 
     _dio = await builder.build();
@@ -77,6 +99,8 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
       'auth': _authEnabled,
       'cache': _cacheEnabled,
       'offline': _offlineEnabled,
+      'deduplication': _deduplicationEnabled,
+      'swr': _swrEnabled,
     });
   }
 
@@ -106,19 +130,49 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
     try {
       final options = Options(method: method, headers: headers);
 
-      final response = await _dio.request(url, options: options);
-      stopwatch.stop();
+      if (_swrEnabled && method == 'GET') {
+        // Demonstrating SWR via streamRequest which is typical for observing cache-then-network
+        // Note: Users can still use .request, but streamRequest makes it easy to see the two emissions.
 
-      setState(() {
-        _responseData = response.data;
-        _statusCode = response.statusCode;
-        _requestDuration = stopwatch.elapsed;
-      });
+        // We'll just take the LAST emission for this simple panel, but log both.
+        // In a real SWR demo, we want to show that we got a cache hit FIRST.
+        await for (final response in _dio.streamRequest(
+          url,
+          options: options,
+        )) {
+          if (!mounted) break;
+          setState(() {
+            _responseData = response.data;
+            _statusCode = response.statusCode;
+            _responseSource = response.extra['acdc_source'] ?? 'unknown';
+            // We don't stop stopwatch here because another emission might come
+          });
 
-      _talker.info('Request Success: $method $url', {
-        'status': response.statusCode,
-        'duration': '${stopwatch.elapsedMilliseconds}ms',
-      });
+          _talker.info('SWR Emission: $method $url', {
+            'status': response.statusCode,
+            'source': response.extra['acdc_source'] ?? 'unknown',
+          });
+        }
+        stopwatch.stop();
+        setState(() {
+          _requestDuration = stopwatch.elapsed;
+        });
+      } else {
+        // Standard request
+        final response = await _dio.request(url, options: options);
+        stopwatch.stop();
+
+        setState(() {
+          _responseData = response.data;
+          _statusCode = response.statusCode;
+          _requestDuration = stopwatch.elapsed;
+        });
+
+        _talker.info('Request Success: $method $url', {
+          'status': response.statusCode,
+          'duration': '${stopwatch.elapsedMilliseconds}ms',
+        });
+      }
     } on DioException catch (e) {
       stopwatch.stop();
       setState(() {
@@ -143,6 +197,150 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _handleFireDuplicateRequests() async {
+    // Wait for initialization to complete
+    await _initializationFuture;
+
+    if (!mounted) return;
+
+    if (!_deduplicationEnabled) {
+      _talker.warning('Enable Deduplication toggle to see effects!');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enable Deduplication toggle first!'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      // We proceed anyway to show MULTIPLE requests logging if disabled
+    }
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _responseData = null;
+      _responseData = null;
+      _statusCode = null;
+      _responseSource = null;
+    });
+
+    _talker.info('Firing 3 simultaneous requests to https://httpbin.org/get');
+
+    final stopwatch = Stopwatch()..start();
+    try {
+      // Fire 3 requests in parallel
+      final responses = await Future.wait([
+        _dio.get('https://httpbin.org/get'),
+        _dio.get('https://httpbin.org/get'),
+        _dio.get('https://httpbin.org/get'),
+      ]);
+
+      stopwatch.stop();
+
+      if (!mounted) return;
+
+      setState(() {
+        _responseData = {
+          'message': 'fired 3 requests',
+          'responses': responses.length,
+          'deduplication_active': _deduplicationEnabled,
+        };
+        _statusCode = 200;
+        _requestDuration = stopwatch.elapsed;
+      });
+
+      _talker.info('Duplicate Requests Finished', {
+        'count': responses.length,
+        'deduplicated':
+            _deduplicationEnabled, // If true, network log should show only 1 actual request
+      });
+    } catch (e, st) {
+      stopwatch.stop();
+      setState(() {
+        _error = e.toString();
+      });
+      _talker.handle(e, st);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  CancelToken? _cancelToken;
+
+  Future<void> _handleCancelRequest() async {
+    // Wait for initialization to complete
+    await _initializationFuture;
+
+    _cancelToken?.cancel('User cancelled previous request');
+    _cancelToken = CancelToken();
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _responseData = null;
+      _statusCode = null;
+    });
+
+    _talker.info('Starting (delay=3s) request... Press Cancel again to abort.');
+
+    try {
+      final response = await _dio.get(
+        'https://httpbin.org/delay/3',
+        cancelToken: _cancelToken,
+      );
+
+      if (mounted) {
+        setState(() {
+          _responseData = response.data;
+          _statusCode = response.statusCode;
+        });
+        _talker.info('Request Completed (Not Cancelled)');
+      }
+    } on DioException catch (e) {
+      if (CancelToken.isCancel(e)) {
+        if (mounted) {
+          setState(() {
+            _error = 'Request was correctly cancelled!';
+            _responseData = {'status': 'cancelled'};
+          });
+          _talker.info('Request Cancelled Successfully');
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _error = e.message;
+          });
+          _talker.handle(e, StackTrace.current);
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleTriggerError() async {
+    // Wait for initialization to complete
+    await _initializationFuture;
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      // Intentionally bad URL
+      await _dio.get('https://httpbin.org/status/401');
+    } on DioException catch (e) {
+      setState(() {
+        _error = 'Triggered Error: ${e.message}';
+        _statusCode = e.response?.statusCode;
+        _responseData = e.response?.data;
+      });
+      _talker.error('Caught Expected Error: ${e.message}');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -188,6 +386,8 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
                             cacheEnabled: _cacheEnabled,
                             cacheTtl: _cacheTtl,
                             offlineEnabled: _offlineEnabled,
+                            deduplicationEnabled: _deduplicationEnabled,
+                            swrEnabled: _swrEnabled,
                             onAuthToggled: (value) {
                               setState(() => _authEnabled = value);
                               _rebuildClient();
@@ -208,11 +408,25 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
                               setState(() => _offlineEnabled = value);
                               _rebuildClient();
                             },
+                            onDeduplicationToggled: (value) {
+                              setState(() => _deduplicationEnabled = value);
+                              _rebuildClient();
+                            },
+                            onSwrToggled: (value) {
+                              setState(() => _swrEnabled = value);
+                              _rebuildClient();
+                            },
                           ),
                         ),
                         Padding(
                           padding: const EdgeInsets.all(8.0),
-                          child: RequestPanel(onSend: _handleSendRequest),
+                          child: RequestPanel(
+                            onSend: _handleSendRequest,
+                            onFireDuplicateRequests:
+                                _handleFireDuplicateRequests,
+                            onCancelRequest: _handleCancelRequest,
+                            onTriggerError: _handleTriggerError,
+                          ),
                         ),
                         Padding(
                           padding: const EdgeInsets.all(8.0),
@@ -222,6 +436,7 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
                             error: _error,
                             statusCode: _statusCode,
                             duration: _requestDuration,
+                            source: _responseSource,
                           ),
                         ),
                         Padding(
@@ -251,6 +466,8 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
                     cacheEnabled: _cacheEnabled,
                     cacheTtl: _cacheTtl,
                     offlineEnabled: _offlineEnabled,
+                    deduplicationEnabled: _deduplicationEnabled,
+                    swrEnabled: _swrEnabled,
                     onAuthToggled: (value) {
                       setState(() => _authEnabled = value);
                       _rebuildClient();
@@ -271,6 +488,14 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
                       setState(() => _offlineEnabled = value);
                       _rebuildClient();
                     },
+                    onDeduplicationToggled: (value) {
+                      setState(() => _deduplicationEnabled = value);
+                      _rebuildClient();
+                    },
+                    onSwrToggled: (value) {
+                      setState(() => _swrEnabled = value);
+                      _rebuildClient();
+                    },
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -279,7 +504,12 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
                   flex: 3,
                   child: Column(
                     children: [
-                      RequestPanel(onSend: _handleSendRequest),
+                      RequestPanel(
+                        onSend: _handleSendRequest,
+                        onFireDuplicateRequests: _handleFireDuplicateRequests,
+                        onCancelRequest: _handleCancelRequest,
+                        onTriggerError: _handleTriggerError,
+                      ),
                       const SizedBox(height: 16),
                       Expanded(
                         child: ResponsePanel(
@@ -288,6 +518,7 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
                           error: _error,
                           statusCode: _statusCode,
                           duration: _requestDuration,
+                          source: _responseSource,
                         ),
                       ),
                     ],

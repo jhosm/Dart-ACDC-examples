@@ -6,6 +6,7 @@ class ResponsePanel extends StatelessWidget {
   final bool isLoading;
   final int? statusCode;
   final Duration? duration;
+  final String? source;
 
   const ResponsePanel({
     super.key,
@@ -14,6 +15,7 @@ class ResponsePanel extends StatelessWidget {
     this.isLoading = false,
     this.statusCode,
     this.duration,
+    this.source,
   });
 
   @override
@@ -81,6 +83,30 @@ class ResponsePanel extends StatelessWidget {
                   Text(
                     '${duration!.inMilliseconds}ms',
                     style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+                if (source != null) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: Colors.blue.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: Text(
+                      source!.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                      ),
+                    ),
                   ),
                 ],
               ],

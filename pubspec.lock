@@ -142,7 +142,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: "867c0ba3883b9c600e1a3333086eeade42f01e4d"
+      resolved-ref: fcd7b57aeb8ca96c6f84c62f7fc30718f72f00b7
       url: "https://github.com/jhosm/Dart-ACDC.git"
     source: git
     version: "0.2.0"

@@ -9,12 +9,16 @@ class CodeSnippetGenerator {
   /// - [cacheEnabled]: Whether caching is enabled
   /// - [cacheTtl]: Cache TTL in seconds (used if cacheEnabled is true)
   /// - [offlineEnabled]: Whether offline detection is enabled
+  /// - [deduplicationEnabled]: Whether request deduplication is enabled
+  /// - [swrEnabled]: Whether stale-while-revalidate is enabled
   static String generateBuilderCode({
     required bool authEnabled,
     required String clientId,
     required bool cacheEnabled,
     required int cacheTtl,
     required bool offlineEnabled,
+    required bool deduplicationEnabled,
+    required bool swrEnabled,
   }) {
     final buffer = StringBuffer();
 
@@ -27,14 +31,23 @@ class CodeSnippetGenerator {
       buffer.writeln('  )');
     }
 
-    if (cacheEnabled) {
+    if (cacheEnabled || swrEnabled) {
       buffer.writeln('  .withCache(');
-      buffer.writeln('    CacheConfig(ttl: Duration(seconds: $cacheTtl)),');
+      buffer.writeln('    CacheConfig(');
+      buffer.writeln('      ttl: Duration(seconds: $cacheTtl),');
+      if (swrEnabled) {
+        buffer.writeln('      staleWhileRevalidate: true,');
+      }
+      buffer.writeln('    ),');
       buffer.writeln('  )');
     }
 
     if (offlineEnabled) {
       buffer.writeln('  .withOfflineDetection(failFast: true)');
+    }
+
+    if (deduplicationEnabled) {
+      buffer.writeln('  .withDeduplication()');
     }
 
     buffer.writeln('  .withLogDelegate(TalkerLogDelegate(talker))');

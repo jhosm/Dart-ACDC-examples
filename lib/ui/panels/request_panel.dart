@@ -3,14 +3,27 @@ import 'package:flutter/material.dart';
 class RequestPanel extends StatefulWidget {
   final Function(String method, String url, Map<String, String> headers) onSend;
 
-  const RequestPanel({super.key, required this.onSend});
+  // Demo Callbacks
+  final VoidCallback? onFireDuplicateRequests;
+  final VoidCallback? onCancelRequest;
+  final VoidCallback? onTriggerError;
+
+  const RequestPanel({
+    super.key,
+    required this.onSend,
+    this.onFireDuplicateRequests,
+    this.onCancelRequest,
+    this.onTriggerError,
+  });
 
   @override
   State<RequestPanel> createState() => _RequestPanelState();
 }
 
 class _RequestPanelState extends State<RequestPanel> {
-  final _urlController = TextEditingController(text: 'https://httpbin.org/get');
+  final _urlController = TextEditingController(
+    text: 'https://httpbin.org/cache/60',
+  );
   final _headersController = TextEditingController();
 
   String _selectedMethod = 'GET';
@@ -148,6 +161,41 @@ class _RequestPanelState extends State<RequestPanel> {
                 foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            Text('Demo Actions', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (widget.onFireDuplicateRequests != null)
+                  OutlinedButton.icon(
+                    onPressed: widget.onFireDuplicateRequests,
+                    icon: const Icon(Icons.copy_all, size: 18),
+                    label: const Text('Fire 3x (Dedup)'),
+                  ),
+                if (widget.onCancelRequest != null)
+                  OutlinedButton.icon(
+                    onPressed: widget.onCancelRequest,
+                    icon: const Icon(Icons.cancel, size: 18),
+                    label: const Text('Cancel Request'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.error,
+                      side: BorderSide(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                if (widget.onTriggerError != null)
+                  OutlinedButton.icon(
+                    onPressed: widget.onTriggerError,
+                    icon: const Icon(Icons.error_outline, size: 18),
+                    label: const Text('Trigger Error'),
+                  ),
+              ],
             ),
           ],
         ),
