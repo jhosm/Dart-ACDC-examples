@@ -142,7 +142,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: fcd7b57aeb8ca96c6f84c62f7fc30718f72f00b7
+      resolved-ref: ce38927ebbc14e9291e3020f8d3a701c25ea415d
       url: "https://github.com/jhosm/Dart-ACDC.git"
     source: git
     version: "0.2.0"
@@ -163,7 +163,7 @@ packages:
     source: hosted
     version: "5.9.0"
   dio_cache_interceptor:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: dio_cache_interceptor
       sha256: ac9f312e5a81d79cbccb15f56b78aeae7343a981c1d7c169b11194fae806ec0b

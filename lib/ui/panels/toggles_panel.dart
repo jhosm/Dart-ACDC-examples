@@ -164,7 +164,7 @@ class TogglesPanel extends StatelessWidget {
             // Offline Detection Toggle
             _buildToggleSection(
               context: context,
-              title: 'Offline Detection',
+              title: 'Simulate Offline Mode',
               icon: Icons.wifi_off,
               value: offlineEnabled,
               onChanged: onOfflineToggled,

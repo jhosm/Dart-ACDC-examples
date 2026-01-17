@@ -12,6 +12,7 @@ import 'panels/log_panel.dart';
 import 'panels/request_panel.dart';
 import 'panels/response_panel.dart';
 import 'panels/toggles_panel.dart';
+import '../utils/simulated_network_info.dart';
 
 class ShowcaseHome extends StatefulWidget {
   final String title;
@@ -86,7 +87,10 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
     }
 
     if (_offlineEnabled) {
-      builder = builder.withOfflineDetection(failFast: true);
+      // Simulate offline mode by injecting a NetworkInfo that reports false
+      builder = builder
+          .withNetworkInfo(SimulatedNetworkInfo(isConnected: false))
+          .withOfflineDetection(failFast: true);
     }
 
     if (_deduplicationEnabled) {
