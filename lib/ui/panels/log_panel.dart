@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 
@@ -13,18 +15,25 @@ class LogPanel extends StatefulWidget {
 class _LogPanelState extends State<LogPanel> {
   final List<TalkerData> _logs = [];
   LogLevel? _filterLevel;
+  StreamSubscription<dynamic>? _subscription;
 
   @override
   void initState() {
     super.initState();
     _logs.addAll(widget.talker.history);
-    widget.talker.stream.listen((data) {
+    _subscription = widget.talker.stream.listen((data) {
       if (mounted) {
         setState(() {
           _logs.add(data);
         });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 
   void _clearLogs() {

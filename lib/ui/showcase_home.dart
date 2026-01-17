@@ -20,6 +20,7 @@ class ShowcaseHome extends StatefulWidget {
 class _ShowcaseHomeState extends State<ShowcaseHome> {
   final Talker _talker = TalkerFlutter.init();
   late Dio _dio;
+  late Future<void> _initializationFuture;
 
   // State
   bool _isLoading = false;
@@ -31,7 +32,7 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
   @override
   void initState() {
     super.initState();
-    _initializeClient();
+    _initializationFuture = _initializeClient();
   }
 
   Future<void> _initializeClient() async {
@@ -49,6 +50,9 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
     String url,
     Map<String, String> headers,
   ) async {
+    // Wait for initialization to complete
+    await _initializationFuture;
+
     setState(() {
       _isLoading = true;
       _error = null;
