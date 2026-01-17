@@ -38,7 +38,8 @@ dependencies:
   flutter_web_auth_2: ^3.0.0
   dio: ^5.0.0
   dart_acdc:
-    path: ../
+    git:
+      url: https://github.com/jhosm/Dart-ACDC.git
   crypto: ^3.0.0
   openapi:
     path: ./lib/api_client
