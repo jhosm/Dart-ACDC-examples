@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 
 import '../logging/talker_log_delegate.dart';
+import '../token_provider.dart';
 import 'panels/log_panel.dart';
 import 'panels/request_panel.dart';
 import 'panels/response_panel.dart';
+import 'panels/toggles_panel.dart';
 
 class ShowcaseHome extends StatefulWidget {
   final String title;
@@ -22,12 +24,20 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
   late Dio _dio;
   late Future<void> _initializationFuture;
 
-  // State
+  // Request/Response State
   bool _isLoading = false;
   dynamic _responseData;
   String? _error;
   int? _statusCode;
   Duration? _requestDuration;
+
+  // Feature Toggle State
+  bool _authEnabled = false;
+  String _clientId = '';
+  bool _cacheEnabled = false;
+  int _cacheTtl = 60;
+  bool _offlineEnabled = false;
+  final MockTokenProvider _tokenProvider = MockTokenProvider();
 
   @override
   void initState() {
@@ -36,13 +46,43 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
   }
 
   Future<void> _initializeClient() async {
-    _dio = await acdc.AcdcClientBuilder()
+    var builder = acdc.AcdcClientBuilder()
         .withBaseUrl('') // Base URL handled in RequestPanel input
         .withLogDelegate(TalkerLogDelegate(_talker))
-        .withLogLevel(acdc.LogLevel.debug) // Capture everything for log panel
-        .build();
+        .withLogLevel(acdc.LogLevel.debug); // Capture everything for log panel
 
-    _talker.info('ACDC Client Initialized');
+    // Apply feature toggles
+    if (_authEnabled && _clientId.isNotEmpty) {
+      // Set the client ID as a mock token for demonstration
+      await _tokenProvider.setTokens(
+        accessToken: _clientId,
+        accessExpiry: DateTime.now().add(const Duration(hours: 1)),
+      );
+      builder = builder.withTokenProvider(_tokenProvider);
+    }
+
+    if (_cacheEnabled) {
+      builder = builder.withCache(
+        acdc.CacheConfig(ttl: Duration(seconds: _cacheTtl)),
+      );
+    }
+
+    if (_offlineEnabled) {
+      builder = builder.withOfflineDetection(failFast: true);
+    }
+
+    _dio = await builder.build();
+
+    _talker.info('ACDC Client Initialized', {
+      'auth': _authEnabled,
+      'cache': _cacheEnabled,
+      'offline': _offlineEnabled,
+    });
+  }
+
+  Future<void> _rebuildClient() async {
+    _talker.info('Rebuilding ACDC Client due to toggle change');
+    await _initializeClient();
   }
 
   Future<void> _handleSendRequest(
@@ -124,13 +164,14 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
           final isWide = constraints.maxWidth > 800;
 
           if (!isWide) {
-            // Mobile/Narrow Layout: Tabs or Single Column
+            // Mobile/Narrow Layout: Tabs
             return DefaultTabController(
-              length: 3,
+              length: 4,
               child: Column(
                 children: [
                   const TabBar(
                     tabs: [
+                      Tab(text: 'Toggles'),
                       Tab(text: 'Request'),
                       Tab(text: 'Response'),
                       Tab(text: 'Logs'),
@@ -139,6 +180,36 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
                   Expanded(
                     child: TabBarView(
                       children: [
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: TogglesPanel(
+                            authEnabled: _authEnabled,
+                            clientId: _clientId,
+                            cacheEnabled: _cacheEnabled,
+                            cacheTtl: _cacheTtl,
+                            offlineEnabled: _offlineEnabled,
+                            onAuthToggled: (value) {
+                              setState(() => _authEnabled = value);
+                              _rebuildClient();
+                            },
+                            onClientIdChanged: (value) {
+                              setState(() => _clientId = value);
+                              _rebuildClient();
+                            },
+                            onCacheToggled: (value) {
+                              setState(() => _cacheEnabled = value);
+                              _rebuildClient();
+                            },
+                            onCacheTtlChanged: (value) {
+                              setState(() => _cacheTtl = value);
+                              _rebuildClient();
+                            },
+                            onOfflineToggled: (value) {
+                              setState(() => _offlineEnabled = value);
+                              _rebuildClient();
+                            },
+                          ),
+                        ),
                         Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: RequestPanel(onSend: _handleSendRequest),
@@ -171,6 +242,39 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Left: Toggles Panel
+                Expanded(
+                  flex: 2,
+                  child: TogglesPanel(
+                    authEnabled: _authEnabled,
+                    clientId: _clientId,
+                    cacheEnabled: _cacheEnabled,
+                    cacheTtl: _cacheTtl,
+                    offlineEnabled: _offlineEnabled,
+                    onAuthToggled: (value) {
+                      setState(() => _authEnabled = value);
+                      _rebuildClient();
+                    },
+                    onClientIdChanged: (value) {
+                      setState(() => _clientId = value);
+                      _rebuildClient();
+                    },
+                    onCacheToggled: (value) {
+                      setState(() => _cacheEnabled = value);
+                      _rebuildClient();
+                    },
+                    onCacheTtlChanged: (value) {
+                      setState(() => _cacheTtl = value);
+                      _rebuildClient();
+                    },
+                    onOfflineToggled: (value) {
+                      setState(() => _offlineEnabled = value);
+                      _rebuildClient();
+                    },
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Middle: Request + Response
                 Expanded(
                   flex: 3,
                   child: Column(
@@ -190,6 +294,7 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
                   ),
                 ),
                 const SizedBox(width: 16),
+                // Right: Logs
                 Expanded(flex: 2, child: LogPanel(talker: _talker)),
               ],
             ),
