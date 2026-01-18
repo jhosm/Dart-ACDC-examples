@@ -94,7 +94,7 @@ class _RequestPanelState extends State<RequestPanel> {
                 SizedBox(
                   width: 140,
                   child: DropdownButtonFormField<String>(
-                    value: _selectedMethod,
+                    initialValue: _selectedMethod,
                     decoration: const InputDecoration(
                       labelText: 'Method',
                       border: OutlineInputBorder(),

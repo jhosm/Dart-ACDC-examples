@@ -231,15 +231,17 @@ class _ShowcaseHomeState extends State<ShowcaseHome> {
       _responseSource = null;
     });
 
-    _talker.info('Firing 3 simultaneous requests to https://httpbin.org/get');
+    _talker.info(
+      'Firing 3 simultaneous requests to https://httpbin.org/cache/60',
+    );
 
     final stopwatch = Stopwatch()..start();
     try {
       // Fire 3 requests in parallel
       final responses = await Future.wait([
-        _dio.get('https://httpbin.org/get'),
-        _dio.get('https://httpbin.org/get'),
-        _dio.get('https://httpbin.org/get'),
+        _dio.get('https://httpbin.org/cache/60'),
+        _dio.get('https://httpbin.org/cache/60'),
+        _dio.get('https://httpbin.org/cache/60'),
       ]);
 
       stopwatch.stop();
