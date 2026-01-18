@@ -5,7 +5,7 @@ import '../../utils/code_snippet_generator.dart';
 
 /// Panel displaying feature toggles for Dart-ACDC features
 /// (Authentication, Caching, Offline Detection, Deduplication, SWR) with live code snippet.
-class TogglesPanel extends StatelessWidget {
+class TogglesPanel extends StatefulWidget {
   final bool authEnabled;
   final String clientId;
   final bool cacheEnabled;
@@ -40,6 +40,13 @@ class TogglesPanel extends StatelessWidget {
   });
 
   @override
+  State<TogglesPanel> createState() => _TogglesPanelState();
+}
+
+class _TogglesPanelState extends State<TogglesPanel> {
+  bool _showDescriptions = false;
+
+  @override
   Widget build(BuildContext context) {
     return Card(
       elevation: 0,
@@ -54,16 +61,35 @@ class TogglesPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Feature Toggles',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Feature Toggles',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    _showDescriptions ? Icons.info : Icons.info_outline,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  tooltip: _showDescriptions
+                      ? 'Hide descriptions'
+                      : 'Show descriptions',
+                  onPressed: () {
+                    setState(() {
+                      _showDescriptions = !_showDescriptions;
+                    });
+                  },
+                ),
+              ],
             ),
             const SizedBox(height: 16),
 
             // Offline Mode Banner
-            if (offlineEnabled)
+            if (widget.offlineEnabled)
               Container(
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 16),
@@ -97,21 +123,23 @@ class TogglesPanel extends StatelessWidget {
             _buildToggleSection(
               context: context,
               title: 'Authentication',
+              description:
+                  'Simulates an authenticated session by injecting a mock token into requests.',
               icon: Icons.lock,
-              value: authEnabled,
-              onChanged: onAuthToggled,
-              child: authEnabled
+              value: widget.authEnabled,
+              onChanged: widget.onAuthToggled,
+              child: widget.authEnabled
                   ? Padding(
                       padding: const EdgeInsets.only(top: 12),
                       child: TextFormField(
-                        initialValue: clientId,
+                        initialValue: widget.clientId,
                         decoration: const InputDecoration(
                           labelText: 'Client ID',
                           hintText: 'your-client-id',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.key),
                         ),
-                        onChanged: onClientIdChanged,
+                        onChanged: widget.onClientIdChanged,
                       ),
                     )
                   : null,
@@ -122,10 +150,12 @@ class TogglesPanel extends StatelessWidget {
             _buildToggleSection(
               context: context,
               title: 'Caching',
+              description:
+                  'Enables response caching to reduce network calls and improve performance.',
               icon: Icons.storage,
-              value: cacheEnabled,
-              onChanged: onCacheToggled,
-              child: cacheEnabled
+              value: widget.cacheEnabled,
+              onChanged: widget.onCacheToggled,
+              child: widget.cacheEnabled
                   ? Padding(
                       padding: const EdgeInsets.only(top: 12),
                       child: Column(
@@ -139,20 +169,20 @@ class TogglesPanel extends StatelessWidget {
                                 style: Theme.of(context).textTheme.bodyMedium,
                               ),
                               Text(
-                                '$cacheTtl seconds',
+                                '${widget.cacheTtl} seconds',
                                 style: Theme.of(context).textTheme.bodyMedium
                                     ?.copyWith(fontWeight: FontWeight.bold),
                               ),
                             ],
                           ),
                           Slider(
-                            value: cacheTtl.toDouble(),
+                            value: widget.cacheTtl.toDouble(),
                             min: 10,
                             max: 300,
                             divisions: 29,
-                            label: '$cacheTtl seconds',
+                            label: '${widget.cacheTtl} seconds',
                             onChanged: (value) =>
-                                onCacheTtlChanged(value.toInt()),
+                                widget.onCacheTtlChanged(value.toInt()),
                           ),
                         ],
                       ),
@@ -165,9 +195,11 @@ class TogglesPanel extends StatelessWidget {
             _buildToggleSection(
               context: context,
               title: 'Simulate Offline Mode',
+              description:
+                  'Forces the client to behave as if there is no internet connection.',
               icon: Icons.wifi_off,
-              value: offlineEnabled,
-              onChanged: onOfflineToggled,
+              value: widget.offlineEnabled,
+              onChanged: widget.onOfflineToggled,
             ),
             const SizedBox(height: 12),
 
@@ -175,9 +207,11 @@ class TogglesPanel extends StatelessWidget {
             _buildToggleSection(
               context: context,
               title: 'Request Deduplication',
+              description:
+                  'Merges identical simultaneous requests into a single network call.',
               icon: Icons.copy_all,
-              value: deduplicationEnabled,
-              onChanged: onDeduplicationToggled,
+              value: widget.deduplicationEnabled,
+              onChanged: widget.onDeduplicationToggled,
             ),
             const SizedBox(height: 12),
 
@@ -185,9 +219,11 @@ class TogglesPanel extends StatelessWidget {
             _buildToggleSection(
               context: context,
               title: 'Stale-While-Revalidate',
+              description:
+                  'Returns cached data immediately while fetching fresh data in the background.',
               icon: Icons.refresh,
-              value: swrEnabled,
-              onChanged: onSwrToggled,
+              value: widget.swrEnabled,
+              onChanged: widget.onSwrToggled,
             ),
             const SizedBox(height: 24),
 
@@ -202,6 +238,7 @@ class TogglesPanel extends StatelessWidget {
   Widget _buildToggleSection({
     required BuildContext context,
     required String title,
+    String? description,
     required IconData icon,
     required bool value,
     required ValueChanged<bool> onChanged,
@@ -218,15 +255,36 @@ class TogglesPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 20),
-              const SizedBox(width: 8),
+              Padding(
+                padding: const EdgeInsets.only(top: 12.0),
+                child: Icon(icon, size: 20),
+              ),
+              const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  title,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10.0),
+                      child: Text(
+                        title,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (_showDescriptions && description != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        description,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               Switch(value: value, onChanged: onChanged),
@@ -240,13 +298,13 @@ class TogglesPanel extends StatelessWidget {
 
   Widget _buildCodeSnippetSection(BuildContext context) {
     final codeSnippet = CodeSnippetGenerator.generateBuilderCode(
-      authEnabled: authEnabled,
-      clientId: clientId,
-      cacheEnabled: cacheEnabled,
-      cacheTtl: cacheTtl,
-      offlineEnabled: offlineEnabled,
-      deduplicationEnabled: deduplicationEnabled,
-      swrEnabled: swrEnabled,
+      authEnabled: widget.authEnabled,
+      clientId: widget.clientId,
+      cacheEnabled: widget.cacheEnabled,
+      cacheTtl: widget.cacheTtl,
+      offlineEnabled: widget.offlineEnabled,
+      deduplicationEnabled: widget.deduplicationEnabled,
+      swrEnabled: widget.swrEnabled,
     );
 
     return ExpansionTile(
